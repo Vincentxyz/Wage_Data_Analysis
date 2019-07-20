@@ -14,14 +14,27 @@ while(!is.null(dev.list()))
   dev.off()
 }
 
+# --- Load packages if necessary ---------------------------
+
+if (!require(ISLR)) install.packages('ISLR')
+library(ISLR)
+
+if (!require(tidyverse)) install.packages('tidyverse')
+library(tidyverse)
+
+if (!require(tidyverse)) install.packages('e1071')
+library(e1071)
+
+if (!require(reshape2)) install.packages('reshape2')
+library(reshape2)
+
+
+
 #--- Load sample ------------------------------------------
 # This part was added as specified in the task description
 # It is commented out and the initially drawn sample is worked on
 
 
-
-require(ISLR)
-library(ISLR)
 attach(Wage)
 assessment_dataframe <- Wage[sample(nrow(Wage), 3000), ]
 # 
@@ -30,18 +43,12 @@ assessment_dataframe <- Wage[sample(nrow(Wage), 3000), ]
 # write.csv2(assessment_dataframe, file = "assessment_dataframe.csv", row.names = FALSE)
 
 # assessment_dataframe <- read.csv2("assessment_dataframe.csv")
-
-require(tidyverse)
-library(tidyverse)
  
 
 assessment_dataframe <- assessment_dataframe %>% select(year, age, education, wage)
 
 
 #--- 1. Descriptive statistics -----------------------------
-
-require(e1071)
-library(e1071)
 
 str(assessment_dataframe)
 
@@ -71,8 +78,7 @@ show_desc_stats <- function(variable,variable_name){
 #### Create a histogram for the age of participants with bins of size 8 from age 16 to 100
 
 ggplot(assessment_dataframe) +
-  geom_histogram(mapping =aes(age), 
-                 breaks = seq(from = 16, to = 80, by = 8),
+  geom_bar(mapping =aes(age),
                  color = 'cadetblue4',
                  fill = 'cadetblue1',
                  stat = 'density')
@@ -105,11 +111,10 @@ ggplot(assessment_dataframe) +
 #### Create a histogram of the wage
 
 ggplot(assessment_dataframe) +
-  geom_histogram(mapping =aes(wage),
+  geom_bar(mapping =aes(wage),
                  stat = "density",
            color = 'cadetblue4',
            fill = 'cadetblue1',
-           breaks = c(25, 50,75,100,125,150,175,200,250,300,350)
           ) 
 
 show_desc_stats(assessment_dataframe$wage, 'wage')
@@ -208,7 +213,22 @@ ggplot(assessment_dataframe[assessment_dataframe[,"education"] == '5. Advanced D
 # Parametric statistic, requires interval data for both variables
 cor(assessment_dataframe[,c("age","wage")], method = "pearson" )
 cor(assessment_dataframe[,c("age","wage")], method = "spearman" )
-cor(assessment_dataframe[,c("age","wage")], method = "rho" )
+cor(assessment_dataframe[,c("age","wage")], method = "kendall" )
+
+cor.test(assessment_dataframe[,"age"],
+         assessment_dataframe[,"wage"], 
+         method = "pearson" )
+
+
+cor.test(assessment_dataframe[,"age"],
+         assessment_dataframe[,"wage"], 
+         method = "spearman" )
+
+
+cor.test(assessment_dataframe[,"age"],
+         assessment_dataframe[,"wage"], 
+         method = "kendall" )
+
 
 # --- 2.3.1.3 - Correlation: year -> wage ----------------
 
@@ -348,9 +368,6 @@ education_ratio <- education_ratio %>% mutate(ratio_education_level_5 = count_ed
 
 # 4. Stack (melt) the columns with the ratios to be able to visualize them.
 
-require(reshape2)
-library(reshape2)
-
 # Melting (stacking) is necessary to show a legend in ggplot
 ed_filtered <- education_ratio %>% select(c(year,ratio_education_level_1, ratio_education_level_2, ratio_education_level_3, ratio_education_level_4, ratio_education_level_5))
 education_ratio_stacked = melt(ed_filtered,id.vars = "year", 
@@ -359,24 +376,19 @@ education_ratio_stacked = melt(ed_filtered,id.vars = "year",
                                value.name = 'ratio') 
 
 
-education_ratio_stacked$education_level <- revalue(education_ratio_stacked$education_level, c("ratio_education_level_1" = "1. < HS Grad", 
-                                                                                              "ratio_education_level_2" = "2. HS Grad",
-                                                                                              "ratio_education_level_3" = "3. Some College",
-                                                                                              "ratio_education_level_3" = "4. College Grad",
-                                                                                              "ratio_education_level_3" = "5. Advanced Degree"))
+education_ratio_stacked$education_level <- recode(education_ratio_stacked$education_level, ratio_education_level_1 = "1. < HS Grad", 
+                                                                                            ratio_education_level_2 = "2. HS Grad",
+                                                                                              ratio_education_level_3 = "3. Some College",
+                                                                                              ratio_education_level_4 = "4. College Grad",
+                                                                                              ratio_education_level_5 = "5. Advanced Degree")
 
 
-
-education_ratio_stacked = stack(education_ratio,select = c(ratio_education_level_1, ratio_education_level_2, ratio_education_level_3, ratio_education_level_4, ratio_education_level_5)) 
-education_ratio_stacked['year'] <- education_ratio_stacked %>% left_join(select(education_ratio,))
-
-education_ratio_stacked[education_ratio_stacked[,'ind'] == 'ratio_education_level_1']
 
 # 5. Visualize the education development over time.
 
-ggplot(education_ratio_stacked, mapping = aes(x = year, y = ratio)) + 
-  geom_line(size = 1, mapping = aes(color = education_level), linetype = 'solid') + 
-  geom_smooth(method = "lm", mapping = aes(color = education_level),linetype = 'dashed', se = FALSE)
+ggplot(education_ratio_stacked, mapping = aes(x = year, y = ratio,color = education_level)) + 
+  geom_line(size = 1, linetype = 'solid') + 
+  geom_smooth(method = "lm", linetype = 'dashed', se = FALSE)
   
 
 # 6. Show the change in education ratios in a table.
@@ -432,79 +444,123 @@ cor.test(assessment_dataframe[,"year"],
          method = "kendall" )
 
 
-# ---- 2.3.2.1 - Correlation: age -> education ---------
+# ---- 2.3.2.2 - Correlation: age -> education ---------
 
 
 # 1. Count the number of people surveyed in for an age
 
 assessment_dataframe$age
 
-education_age_ratio <- table(assessment_dataframe$age)
-education_age_ratio <- assessment_dataframe %>% count(ed_ordinal)
+age_education_ratio <- assessment_dataframe %>% count(age)
 
-colnames(assessment_dataframe)
 
 # 2. Count the number of people in a year with a particular education
 
-education_ratio <-
-  education_ratio %>% left_join(
+
+
+age_education_ratio <-
+  age_education_ratio %>% left_join(
     rename(
       count(
         select(
-          filter(assessment_dataframe, education == '1. < HS Grad'), 1)
-        , year)
+          filter(assessment_dataframe, education == '1. < HS Grad'), 2)
+        , age)
       ,count_education_level_1 = n), 
-    by = 'year')
+    by = 'age')
 
-education_ratio <-
-  education_ratio %>% left_join(
+age_education_ratio <-
+  age_education_ratio %>% left_join(
     rename(
       count(
         select(
-          filter(assessment_dataframe, education == '2. HS Grad'), 1)
-        , year)
+          filter(assessment_dataframe, education == '2. HS Grad'), 2)
+        , age)
       ,count_education_level_2 = n), 
-    by = 'year')
+    by = 'age')
 
-education_ratio <-
-  education_ratio %>% left_join(
+age_education_ratio <-
+  age_education_ratio %>% left_join(
     rename(
       count(
         select(
-          filter(assessment_dataframe, education == '3. Some College'), 1)
-        , year)
+          filter(assessment_dataframe, education == '3. Some College'), 2)
+        , age)
       ,count_education_level_3 = n), 
-    by = 'year')
+    by = 'age')
 
-education_ratio <-
-  education_ratio %>% left_join(
+age_education_ratio <-
+  age_education_ratio %>% left_join(
     rename(
       count(
         select(
-          filter(assessment_dataframe, education == '4. College Grad'), 1)
-        , year)
+          filter(assessment_dataframe, education == '4. College Grad'), 2)
+        , age)
       ,count_education_level_4 = n), 
-    by = 'year')
+    by = 'age')
 
-education_ratio <-
-  education_ratio %>% left_join(
+age_education_ratio <-
+  age_education_ratio %>% left_join(
     rename(
       count(
         select(
-          filter(assessment_dataframe, education == '5. Advanced Degree'), 1)
-        , year)
+          filter(assessment_dataframe, education == '5. Advanced Degree'), 2)
+        , age)
       ,count_education_level_5 = n), 
-    by = 'year')
+    by = 'age')
 
 # 3. Divide the number of people with a certain education by all surveyed people in that year
 
-education_ratio <- education_ratio %>% mutate(ratio_education_level_1 = count_education_level_1 / n)
-education_ratio <- education_ratio %>% mutate(ratio_education_level_2 = count_education_level_2 / n)
-education_ratio <- education_ratio %>% mutate(ratio_education_level_3 = count_education_level_3 / n)
-education_ratio <- education_ratio %>% mutate(ratio_education_level_4 = count_education_level_4 / n)
-education_ratio <- education_ratio %>% mutate(ratio_education_level_5 = count_education_level_5 / n)
+# replace NA values
 
-# x. Calculate correlation of year to education
+age_education_ratio <- as.tibble(age_education_ratio)
+
+age_education_ratio <- age_education_ratio %>% replace_na(list(count_education_level_1 = 0,
+                                                               count_education_level_2 = 0,
+                                                               count_education_level_3 = 0,
+                                                               count_education_level_4 = 0,
+                                                               count_education_level_5 = 0))
+
+age_education_ratio <- age_education_ratio %>% mutate(ratio_education_level_1 = count_education_level_1 / n)
+age_education_ratio <- age_education_ratio %>% mutate(ratio_education_level_2 = count_education_level_2 / n)
+age_education_ratio <- age_education_ratio %>% mutate(ratio_education_level_3 = count_education_level_3 / n)
+age_education_ratio <- age_education_ratio %>% mutate(ratio_education_level_4 = count_education_level_4 / n)
+age_education_ratio <- age_education_ratio %>% mutate(ratio_education_level_5 = count_education_level_5 / n)
+
+
+
+# 4. Stack (melt) the columns with the ratios to be able to visualize them.
+
+# Melting (stacking) is necessary to show a legend in ggplot
+age_edu_filtered <- age_education_ratio %>% select(c(age,ratio_education_level_1, ratio_education_level_2, ratio_education_level_3, ratio_education_level_4, ratio_education_level_5))
+age_education_ratio_stacked = melt(age_edu_filtered,id.vars = "age", 
+                               measure.vars = c("ratio_education_level_1", "ratio_education_level_2", "ratio_education_level_3", "ratio_education_level_4", "ratio_education_level_5"),
+                               variable.name = 'education_level',
+                               value.name = 'ratio') 
+
+
+age_education_ratio_stacked$education_level <- recode(age_education_ratio_stacked$education_level, ratio_education_level_1 = "1. < HS Grad", 
+                                                                                              ratio_education_level_2 = "2. HS Grad",
+                                                                                              ratio_education_level_3 = "3. Some College",
+                                                                                              ratio_education_level_4 = "4. College Grad",
+                                                                                              ratio_education_level_5 = "5. Advanced Degree")
+
+
+
+# 5. Visualize the education development over time.
+
+ggplot(age_education_ratio_stacked, mapping = aes(x = age, y = ratio, color = education_level)) + 
+  geom_line(size = 1, linetype = 'solid') + 
+  geom_smooth(method = "lm", linetype = 'dashed', se = FALSE)
+
+
+
+
+
+ggplot(age_education_ratio_stacked, mapping = aes(x = age_group, y = ratio, color = education_level)) + 
+  geom_line(size = 1, linetype = 'solid') + 
+  geom_smooth(method = "lm", linetype = 'dashed', se = FALSE)
+
+# 6. Calculate correlation of year to education
 
 cor(assessment_dataframe[,c("age","ed_ordinal")], method = "spearman" )
 cor(assessment_dataframe[,c("age","ed_ordinal")], method = "kendall" )
@@ -514,7 +570,217 @@ cor.test(assessment_dataframe[,"age"],
          assessment_dataframe[,"ed_ordinal"], 
          method = "spearman" )
 
-cor.test(assessment_dataframe[,"age"]
+cor.test(assessment_dataframe[,"age"],
          assessment_dataframe[,"ed_ordinal"], 
          method = "kendall" )
+
+
+# ---- 2.3.2.3 - Correlation: age group -> education ---------
+
+# The purpose of building age groups is to have a clearer picture in the line plot due to less
+# fluctuations with changes over single years.
+# The procedure is the same as in 2.3.2.1 - COrrelation: age -> education
+
+# Preparation: Split into age groups
+
+assessment_dataframe$age_group <- cut(assessment_dataframe$age, 
+                                      breaks = c(seq(15,80,4), Inf), 
+                                      labels = seq(16,80,4))
+
+
+# 1. Count the number of people surveyed in for an age_group
+
+age_group_education_ratio <- assessment_dataframe %>% count(age_group)
+
+
+# 2. Count the number of people in a year with a particular education
+
+
+
+age_group_education_ratio <-
+  age_group_education_ratio %>% left_join(
+    rename(
+      count(
+        select(
+          filter(assessment_dataframe, education == '1. < HS Grad'), 6)
+        , age_group)
+      ,count_education_level_1 = n), 
+    by = 'age_group')
+
+age_group_education_ratio <-
+  age_group_education_ratio %>% left_join(
+    rename(
+      count(
+        select(
+          filter(assessment_dataframe, education == '2. HS Grad'), 6)
+        , age_group)
+      ,count_education_level_2 = n), 
+    by = 'age_group')
+
+age_group_education_ratio <-
+  age_group_education_ratio %>% left_join(
+    rename(
+      count(
+        select(
+          filter(assessment_dataframe, education == '3. Some College'), 6)
+        , age_group)
+      ,count_education_level_3 = n), 
+    by = 'age_group')
+
+age_group_education_ratio <-
+  age_group_education_ratio %>% left_join(
+    rename(
+      count(
+        select(
+          filter(assessment_dataframe, education == '4. College Grad'), 6)
+        , age_group)
+      ,count_education_level_4 = n), 
+    by = 'age_group')
+
+age_group_education_ratio <-
+  age_group_education_ratio %>% left_join(
+    rename(
+      count(
+        select(
+          filter(assessment_dataframe, education == '5. Advanced Degree'), 6)
+        , age_group)
+      ,count_education_level_5 = n), 
+    by = 'age_group')
+
+# 3. Divide the number of people with a certain education by all surveyed people in that year
+
+# replace NA values
+
+age_group_education_ratio <- as.tibble(age_group_education_ratio)
+
+age_group_education_ratio <- age_group_education_ratio %>% replace_na(list(count_education_level_1 = 0,
+                                                                           count_education_level_2 = 0,
+                                                                           count_education_level_3 = 0,
+                                                                           count_education_level_4 = 0,
+                                                                           count_education_level_5 = 0))
+
+age_group_education_ratio <- age_group_education_ratio %>% mutate(ratio_education_level_1 = count_education_level_1 / n)
+age_group_education_ratio <- age_group_education_ratio %>% mutate(ratio_education_level_2 = count_education_level_2 / n)
+age_group_education_ratio <- age_group_education_ratio %>% mutate(ratio_education_level_3 = count_education_level_3 / n)
+age_group_education_ratio <- age_group_education_ratio %>% mutate(ratio_education_level_4 = count_education_level_4 / n)
+age_group_education_ratio <- age_group_education_ratio %>% mutate(ratio_education_level_5 = count_education_level_5 / n)
+
+
+
+# 4. Stack (melt) the columns with the ratios to be able to visualize them.
+
+# Melting (stacking) is necessary to show a legend in ggplot
+age_group_edu_filtered <- age_group_education_ratio %>% select(c(age_group,ratio_education_level_1, ratio_education_level_2, ratio_education_level_3, ratio_education_level_4, ratio_education_level_5))
+age_group_education_ratio_stacked = melt(age_group_edu_filtered,id.vars = "age_group", 
+                                         measure.vars = c("ratio_education_level_1", "ratio_education_level_2", "ratio_education_level_3", "ratio_education_level_4", "ratio_education_level_5"),
+                                         variable.name = 'education_level',
+                                         value.name = 'ratio') 
+
+
+age_group_education_ratio_stacked$education_level <- recode(age_group_education_ratio_stacked$education_level, ratio_education_level_1 = "1. < HS Grad", 
+                                                            ratio_education_level_2 = "2. HS Grad",
+                                                            ratio_education_level_3 = "3. Some College",
+                                                            ratio_education_level_4 = "4. College Grad",
+                                                            ratio_education_level_5 = "5. Advanced Degree")
+
+
+# 5. Visualize the education development over time.
+
+
+ggplot(age_group_education_ratio_stacked, mapping = aes(x = (12+ as.integer(age_group)*4), y = ratio, color = education_level)) + 
+  geom_line(size = 1, linetype = 'solid') +
+  xlab('age group')
+  
+ggplot(age_group_education_ratio_stacked, mapping = aes(x = as.integer(age_group), y = ratio, color = education_level)) + 
+  geom_smooth(method = "lm", linetype = 'dashed', se = FALSE) +
+  xlab('age group')
+
+
+# --- 2.3.3.1 - Correlation: year -> age ----------------
+
+# Scatter plot year to wage
+# sampling of 300 random points so that points can be made out
+
+ggplot(assessment_dataframe) +
+  geom_point(mapping = aes(year, age))
+
+# Correlation assessment Pearson, Spearman and Kendall
+
+cor(assessment_dataframe[,c("year","age")], method = "pearson" )
+cor(assessment_dataframe[,c("year","age")], method = "spearman" )
+cor(assessment_dataframe[,c("year","age")], method = "kendall" )
+
+cor.test(assessment_dataframe[,"year"],
+         assessment_dataframe[,"age"], 
+         method = "pearson" )
+
+cor.test(assessment_dataframe[,"year"],
+         assessment_dataframe[,"age"], 
+         method = "spearman" )
+
+cor.test(assessment_dataframe[,"year"],
+         assessment_dataframe[,"age"], 
+         method = "kendall" )
+
+
+# Mean / median Wage development over time
+
+# Mean wage aggregation
+
+mean_wage_year <- assessment_dataframe %>% 
+  select(year, wage)  %>% 
+  group_by(year) %>% 
+  summarize(mean_wage = mean(wage, na.rm = TRUE))
+
+# Line plot: mean wage over time (solid) and trend line (dashed)
+
+ggplot(mean_wage_year, mapping = aes(x = year, y = mean_wage)) + 
+  geom_line(size = 1, linetype = 'solid') + 
+  geom_smooth(method = "lm",linetype = 'dashed', se = FALSE)
+
+# Median wage aggregation
+
+median_wage_year <- assessment_dataframe %>% 
+  select(year, wage)  %>% 
+  group_by(year) %>% 
+  summarize(median_wage = median(wage, na.rm = TRUE))
+
+# Line plot: median wage over time (solid) and trend line (dashed)
+
+ggplot(median_wage_year, mapping = aes(x = year, y = median_wage)) + 
+  geom_line(size = 1, linetype = 'solid') + 
+  geom_smooth(method = "lm",linetype = 'dashed', se = FALSE)
+
+
+# ---- 3. Regression Models ----------------
+
+# ---- 3.1 Simple linear regression --------
+
+simpleLinearWageRegr <- lm (wage ~ education + year + age, data = assessment_dataframe)
+
+summary(simpleLinearWageRegr)
+str(simpleLinearWageRegr)
+
+eduYearWageRegr <- lm (wage ~ education * year, data = assessment_dataframe)
+
+summary(eduYearWageRegr)
+
+
+ageYearWageRegr <- lm (wage ~ age * year, data = assessment_dataframe)
+
+summary(ageYearWageRegr)
+
+ageEduRegr <- lm(ed_ordinal ~ age, data = assessment_dataframe)
+
+summary(ageEduRegr)
+
+yearAgeRegr <- lm(age ~ year, data = assessment_dataframe)
+
+summary(yearAgeRegr)
+
+# Create scatterplots with regression lines
+dev.off()
+plot(assessment_dataframe$education,assessment_dataframe$wage)
+abline(simpleLinearWageRegr, col="blue" )
+
 
