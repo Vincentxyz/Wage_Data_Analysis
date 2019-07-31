@@ -22,12 +22,51 @@ library(ISLR)
 if (!require(tidyverse)) install.packages('tidyverse')
 library(tidyverse)
 
-if (!require(tidyverse)) install.packages('e1071')
+if (!require(e1071)) install.packages('e1071')
 library(e1071)
 
 if (!require(reshape2)) install.packages('reshape2')
 library(reshape2)
 
+# lmtest: Check autocorrelation between errors
+
+if (!require(lmtest)) install.packages('lmtest')
+library(lmtest)
+
+# car: Check homoscedasticity
+
+if (!require(car)) install.packages('car')
+library(car)
+
+# caret: Advanced machine learning techniques, can identify and cope with multicollinearity
+
+if (!require(caret)) install.packages('caret')
+library(caret)
+
+# corrplot
+
+if (!require(corrplot)) install.packages('corrplot')
+library(corrplot)
+
+# smatr: Used for ANCOVA analysis
+
+if (!require(smatr)) install.packages('smatr')
+library(smatr)
+
+# MASS: Used for regression selection and robust regression
+
+if (!require(MASS)) install.packages('MASS')
+library(MASS)
+
+# foreign: Used for robust regression (handling outliers)
+
+if (!require(foreign)) install.packages('foreign')
+library(foreign)
+
+# quantreg: Used for quantile regression (handling homoscedasticity)
+
+if (!require(quantreg)) install.packages('quantreg')
+library(quantreg)
 
 
 #--- Load sample ------------------------------------------
@@ -153,9 +192,7 @@ cor(select(assessment_dataframe, c(year, age, ed_ordinal, wage)), method = 'kend
 
 # ---- 2.3 - Evaluate correlation between attributes ----
 
-# ---- 2.3.1 - Correlation on wage ----------------------
-
-# ---- 2.3.1.1 - Correlation: education -> Wage ---------
+# ---- 2.3.1 - Correlation: education -> Wage ---------
 
 # Visual assessment with a boxplot diagram
 
@@ -165,6 +202,13 @@ boxplot(wage ~ education,data=assessment_dataframe,
         ylab="wage",
         horizontal=FALSE)
 
+
+ggplot(assessment_dataframe, aes(wage)) +
+  geom_bar(stat = "density",
+           color = 'cadetblue4',
+           fill = 'cadetblue1') +
+  facet_grid(education ~ .)
+   
 
 # Spearman's rank correlation coefficient, rho
 cor(assessment_dataframe[,c("ed_ordinal","wage")], method = "spearman" )
@@ -182,7 +226,7 @@ cor.test(assessment_dataframe[,"ed_ordinal"],
 
 # Discrete Quantitative to continuous - Pearson's correlation
 
-# --- 2.3.1.2 - Correlation: age -> wage ----------------
+# --- 2.3.2 - Correlation: age -> wage ----------------
 
 ggplot(assessment_dataframe[sample(nrow(assessment_dataframe),300),]) +
   geom_point(mapping = aes(age, wage))
@@ -285,9 +329,7 @@ ggplot(median_wage_year, mapping = aes(x = year, y = median_wage)) +
   geom_line(size = 1, linetype = 'solid') + 
   geom_smooth(method = "lm",linetype = 'dashed', se = FALSE)
 
-# ---- 2.3.2 - Correlation on education -----------------
-
-# ---- 2.3.2.1 - Correlation: time -> education ---------
+# ---- 2.3.4 - Correlation: time -> education ---------
 
 
 # Add education ratios into a dataframe to be able to analyze the education 
@@ -444,7 +486,7 @@ cor.test(assessment_dataframe[,"year"],
          method = "kendall" )
 
 
-# ---- 2.3.2.2 - Correlation: age -> education ---------
+# ---- 2.3.5 - Correlation: age -> education ---------
 
 
 # 1. Count the number of people surveyed in for an age
@@ -575,7 +617,7 @@ cor.test(assessment_dataframe[,"age"],
          method = "kendall" )
 
 
-# ---- 2.3.2.3 - Correlation: age group -> education ---------
+# ---- 2.3.6 - Correlation: age group -> education ---------
 
 # The purpose of building age groups is to have a clearer picture in the line plot due to less
 # fluctuations with changes over single years.
@@ -696,7 +738,7 @@ ggplot(age_group_education_ratio_stacked, mapping = aes(x = as.integer(age_group
   xlab('age group')
 
 
-# --- 2.3.3.1 - Correlation: year -> age ----------------
+# --- 2.3.7 - Correlation: year -> age ----------------
 
 # Scatter plot year to wage
 # sampling of 300 random points so that points can be made out
@@ -756,31 +798,372 @@ ggplot(median_wage_year, mapping = aes(x = year, y = median_wage)) +
 
 # ---- 3.1 Simple linear regression --------
 
-simpleLinearWageRegr <- lm (wage ~ education + year + age, data = assessment_dataframe)
+# --- 3.1.1 S.l. regression education -> wage ----
 
-summary(simpleLinearWageRegr)
-str(simpleLinearWageRegr)
+simpleLinearEduWageRegr <- lm(wage ~ education, data = assessment_dataframe)
+
+summary(simpleLinearEduWageRegr)
+
+
+ggplot(assessment_dataframe,aes(ed_ordinal,wage))+
+  geom_point() +
+  geom_smooth(method='lm') +
+  xlab('education level')
+
+plot(summary(rq(wage ~ education, data=assessment_dataframe, tau = seq(from = 0.05, to=0.95, by = 0.05)))) 
+
+
+
+# --- 3.1.2 S.l. regression age -> wage ----
+
+simpleLinearAgeWageRegr <- lm(wage ~ age, data = assessment_dataframe)
+
+summary(simpleLinearAgeWageRegr)
+
+
+ggplot(assessment_dataframe,aes(age,wage))+
+  geom_point() +
+  geom_smooth(method='lm')
+
+plot(summary(rq(wage ~ age, data=assessment_dataframe, tau = seq(from = 0.05, to=0.95, by = 0.05)))) 
+
+
+# --- 3.1.3 S.l. regression year -> wage ----
+
+simpleLinearYearWageRegr <- lm(wage ~ year, data = assessment_dataframe)
+
+summary(simpleLinearYearWageRegr)
+
+
+ggplot(assessment_dataframe,aes(year,wage))+
+  geom_point() +
+  geom_smooth(method='lm')
+
+plot(summary(rq(wage ~ year, data=assessment_dataframe, tau = seq(from = 0.05, to=0.95, by = 0.05)))) 
+
+
+# --- 3.1.4 S.l. regression year -> education ----
+
+simpleLinearYearEduRegr <- lm(ed_ordinal ~ year, data = assessment_dataframe)
+
+summary(simpleLinearYearEduRegr)
+
+
+ggplot(assessment_dataframe,aes(year,ed_ordinal))+
+  geom_point() +
+  geom_smooth(method='lm')
+
+# --- 3.1.5 S.l. regression age -> education ----
+
+simpleLinearAgeEduRegr <- lm(ed_ordinal ~ age, data = assessment_dataframe)
+
+summary(simpleLinearAgeEduRegr)
+
+
+ggplot(assessment_dataframe,aes(age,ed_ordinal))+
+  geom_point() +
+  geom_smooth(method='lm')
+
+# --- 3.1.6 S.l. regression year -> age --------
+
+simpleLinearYearAgeRegr <- lm(age ~ year, data = assessment_dataframe)
+
+summary(simpleLinearYearAgeRegr)
+
+
+ggplot(assessment_dataframe,aes(year,age))+
+  geom_point() +
+  geom_smooth(method='lm')
+
+plot(summary(rq(age ~ year, data=assessment_dataframe, tau = seq(from = 0.05, to=0.95, by = 0.05)))) 
+
+
+# --- 3.2 - Multiple Linear Regression ---------
+
+# --- 3.2.1 M. l. regression education, year -> wage ---
+
+# without interaction effect
+
+eduYearWageRegr <- lm (wage ~ education + year, data = assessment_dataframe)
+
+summary(eduYearWageRegr)
+
+# with interaction effect
 
 eduYearWageRegr <- lm (wage ~ education * year, data = assessment_dataframe)
 
 summary(eduYearWageRegr)
 
+anova(eduYearWageRegr)
+
+# Result: Interaction between education and year is not significant
+
+# --- 3.2.2 M. l. regression age, year -> wage ---
+
+# without interaction effect
+
+ageYearWageRegr <- lm (wage ~ age + year, data = assessment_dataframe)
+
+summary(ageYearWageRegr)
+
+# with interaction effect
 
 ageYearWageRegr <- lm (wage ~ age * year, data = assessment_dataframe)
 
 summary(ageYearWageRegr)
 
-ageEduRegr <- lm(ed_ordinal ~ age, data = assessment_dataframe)
+anova(ageYearWageRegr)
 
-summary(ageEduRegr)
+# Result: Interaction between age and year is not significant
 
-yearAgeRegr <- lm(age ~ year, data = assessment_dataframe)
+# --- 3.2.3 M. l. regression age, education -> wage ---
 
-summary(yearAgeRegr)
+# without interaction effect
 
-# Create scatterplots with regression lines
-dev.off()
-plot(assessment_dataframe$education,assessment_dataframe$wage)
-abline(simpleLinearWageRegr, col="blue" )
+ageEduWageRegr <- lm (wage ~ age + education, data = assessment_dataframe)
+
+summary(ageEduWageRegr)
+
+# with interaction effect
+
+ageEduWageRegr <- lm (wage ~ age * education, data = assessment_dataframe)
+
+summary(ageEduWageRegr)
+
+anova(ageEduWageRegr)
+
+# Result: Interaction between age and education is significant
+
+# --- 3.2.4 M. l. regression education, year, age -> wage ---
+
+# without interaction effect
+
+eduAgeYearWageRegr <- lm (wage ~ education + age + year, data = assessment_dataframe)
+
+summary(eduAgeYearWageRegr)
+
+# with interaction effect between education and age
+
+eduAgeYearWageRegr <- lm (wage ~ education * age + year, data = assessment_dataframe)
+
+summary(eduAgeYearWageRegr)
+
+# with interaction effect between education and year
+
+eduAgeYearWageRegr <- lm (wage ~ education * year + age, data = assessment_dataframe)
+
+summary(eduAgeYearWageRegr)
+
+# with interaction effect between age and year
+
+eduAgeYearWageRegr <- lm (wage ~ education + year * age, data = assessment_dataframe)
+
+summary(eduAgeYearWageRegr)
+
+# with interaction effect between all independent attributes
+
+eduAgeYearWageRegr <- lm (wage ~ education * year * age, data = assessment_dataframe)
+
+summary(eduAgeYearWageRegr)
+
+anova(eduAgeYearWageRegr)
+
+# Result: interestingly, the interaction effect between education, year and age is significant,
+#         although education and year as well as year and age is not significant
+
+# --- 3.3 - Multiple Linear Regression - Assumption check ---------
+
+# Check the conditions of regression with best model
 
 
+# 1. X and Y variables have a linear relation (linear scatter pattern)
+# checked in a scatter plot before
+
+# shown by residuals vs. fitted values
+
+
+# 2. Errors/residuals are normally distributed
+
+fit=lm(wage~ed_ordinal*age*year,data=assessment_dataframe)
+summary(fit)
+par(mfrow = c(2, 2))
+plot(fit)
+
+# Result: Requirement not met, the qqplot is not on the qqline ca. for values x > 1
+
+# 3. Errors are independent / not autocorrelation bw errors
+
+# Durbin-watson test for Autocorrelated/non-independence of Errors
+# Ho: There is no auto-correlation bw errors (errors r independent)
+dwtest(fit)
+
+# Result: Requirement met, Non-autocorrelation is not rejected, the errors are not autocorrelated
+
+
+# 4. constant error variance - Homoscedasticity of residuals or equal variance
+
+# H0: hypothesis of constant error variance, i.e.  NO heteroscedasticity
+# variance around the regression line is the same for all values of the predictor variable (X)
+ncvTest(fit)
+
+# Result: Requirement not met, non-homoscedasticity hypothesis is rejected
+
+
+# 5. Avoid multi-collinearity bw predictors
+
+
+#(1) Tackle multi-collineraity, i.e. presence of highly correlated
+#predictors (X)
+#we remove numerical Xs with correlation>0.7
+
+#Dropping response variable, non-numeric and non-relevant features
+filter_assess = subset(assessment_dataframe, select = -c(education, age_group, wage))
+
+#Calculating Correlation- strength of association between two variables
+descrCor <- cor(filter_assess)
+print(descrCor)
+
+corrplot(descrCor)
+
+
+# Result: There are no highly correlated variables in this dataset
+
+
+##########vif
+
+# Choose a VIF cutoff under which a variable is retained (Zuur et al. 2010 
+# vif>10  multi-collinearity
+#can also reject predictors with vf 5-10
+#car package
+
+fit=lm(medv~ed_ordinal+age+year,data=assessment_dataframe)
+summary(fit)
+
+vif(fit)
+
+# Result: No multicollinearity is found
+
+# --- 3.4 - Multiple Linear Regression - Correction of data to meet regression conditions ---------
+
+# --------------------- Correcting violation of regression condictions ----
+
+# Check the histogram of the response variable: Is it normal?
+
+ggplot(assessment_dataframe) +
+  geom_bar(mapping =aes(wage),
+           stat = "density",
+           color = 'cadetblue4',
+           fill = 'cadetblue1',
+  ) 
+
+
+# Answer: It is not entirely normal as seen in the qqplots, it has two modes
+
+# --- 3.4.1 - Correcting the normality of residuals ----------------------------------------------
+
+
+# --- 3.4.1.2 Use robust regression to decrease the influence of outliers
+
+# Robust linear regression with huber weights for iterated re-weighted least squares (IRLS)
+
+rr.huber <- rlm(wage~education*age*year,data=assessment_dataframe)
+summary(rr.huber)
+
+
+par(mfrow = c(2, 2))
+plot(rr.huber)
+
+
+# Check again the conditions of regression with best model
+
+
+# 1. X and Y variables have a linear relation (linear scatter pattern)
+
+# Result: Requirement met, Residuals vs. Fitted plot is a straight horizontal line
+
+# 2. Errors/residuals are normally distributed
+
+# Result: Requirement not entirely met, the qqplot is not on the qqline ca. for values x > 2
+
+# 3. Errors are independent / not autocorrelation bw errors
+
+# Durbin-watson test for Autocorrelated/non-independence of Errors
+#Ho: There is no auto-correlation bw errors (errors r independent)
+dwtest(rr.huber)
+
+# Result: Requirement met, Non-autocorrelation is not rejected, the errors are not autocorrelated
+
+
+# 4. constant error variance - Homoscedasticity of residuals or equal variance
+
+# H0: hypothesis of constant error variance, i.e.  NO heteroscedasticity
+# variance around the regression line is the same for all values of the predictor variable (X)
+ncvTest(rr.huber)
+ 
+
+# Result: Requirement not met, non-homoscedasticity hypothesis is rejected. However, this may 
+# be due to the large amount of data, visually the tendency is not strong
+
+
+# 5. Avoid multi-collinearity bw predictors
+
+
+#Dropping response variable, non-numeric and non-relevant features
+filter_assess = subset(assessment_dataframe, select = -c(education, age_group, wage))
+
+#Calculating Correlation- strength of association between two variables
+descrCor <- cor(filter_assess)
+print(descrCor)
+
+# Result: Correlation is very weak, multicollinearity is not problematic
+
+# Entire result: Normality of dependent attribute could be improved, but is still not normal
+#               for large values
+
+# --- 3.4.2 - Correcting homoscedasticity ----------------------------------------------
+
+# Use boxcox to check whether the dependent variable is not to be understood as y, but rather
+# log(y), y^2 or other forms
+
+fit=lm(wage~ed_ordinal*age*year,data=assessment_dataframe)
+
+par(mfrow = c(1,1))
+
+bc = boxcox(fit, lambda = seq(-3,3))
+best.lam = bc$x[which(bc$y==max(bc$y))]
+
+# best.lam close to 0, therefore log(y) as dependent variable
+
+# Check model with log(y) as dependent variable
+
+fit= lm(log(wage)~education*age*year,data=assessment_dataframe)
+summary(fit)
+
+par(mfrow = c(2,2))
+plot(fit)
+
+# Normality check: check qqplot with regression in form of log(y)
+
+# --- 3.4.3 - Evaluating quantiles with quantile regression----------------------------
+
+
+
+
+
+plot(summary(rq(log(wage)~education*age*year,data=assessment_dataframe, tau = seq(from = 0.05, to=0.95, by = 0.05)))) 
+
+par(mfrow = c(2, 2))
+plot(qrego)
+
+
+# --- 3.5 - Selection of a regression model------------------------------------------
+
+##examine all models
+step(lm(wage~year+age+education,data=assessment_dataframe),direction="both")
+step(lm(log(wage)~year+age+education,data=assessment_dataframe),direction="both")
+
+
+# no other better regression model is presented
+
+#install.packages('relaimpo')
+library(relaimpo)
