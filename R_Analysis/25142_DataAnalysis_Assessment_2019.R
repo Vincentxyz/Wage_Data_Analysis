@@ -541,9 +541,7 @@ cor.test(assessment_dataframe[,"year"],
 # ---- 2.3.5 - Correlation: age -> education ---------
 
 
-# 1. Count the number of people surveyed in for an age
-
-assessment_dataframe$age
+# 1. Count the number of people surveyed for an age
 
 age_education_ratio <- assessment_dataframe %>% dplyr::count(age)
 
@@ -640,11 +638,28 @@ age_education_ratio_stacked$education_level <- dplyr::recode(age_education_ratio
 
 
 
-# 5. Visualize the education development over time.
+# 5. Visualize the education development for different ages
 
-ggplot(age_education_ratio_stacked, mapping = aes(x = age, y = ratio, color = education_level)) + 
-  geom_line(size = 1, linetype = 'solid') + 
-  geom_smooth(method = "lm", linetype = 'dashed', se = FALSE)
+# Line plots - age/education ratio
+
+ggplot(age_education_ratio_stacked, mapping = aes(x = age, y = ratio*100, color = education_level)) + 
+  geom_line(size = 1, linetype = 'solid') +  
+  labs(y = 'ratio of workers with a particular education level in %',
+       title = 'Line plots for age/education ratio')
+
+# Regression lines - age/education ratio
+
+ggplot(age_education_ratio_stacked, mapping = aes(x = age, y = ratio*100, color = education_level)) + 
+  geom_smooth(method = 'loess', linetype = 'solid', se = FALSE) + 
+  labs(y = 'ratio of workers with a particular education level in %',
+       title = 'Regression lines for age/education ratio')
+
+# Regression line - age/education
+
+ggplot(assessment_dataframe, mapping = aes(x=age, y= ed_ordinal)) +
+  geom_smooth(method = 'loess') +
+  labs(title = 'Regression line between age and education level',
+       y = 'education level')
 
 
 # 6. Calculate correlation of year to education
@@ -662,131 +677,32 @@ cor.test(assessment_dataframe[,"age"],
          method = "kendall" )
 
 
-# ---- 2.3.6 - Correlation: age group -> education ---------
 
-# The purpose of building age groups is to have a clearer picture in the line plot due to less
-# fluctuations with changes over single years.
-# The procedure is the same as in 2.3.2.1 - COrrelation: age -> education
+# --- 2.3.6 - Correlation: year -> age ----------------
 
-# Preparation: Split into age groups
+# Scatter plot year to age
 
-assessment_dataframe$age_group <- cut(assessment_dataframe$age, 
-                                      breaks = c(seq(15,80,4), Inf), 
-                                      labels = seq(16,80,4))
+ggplot(assessment_dataframe, mapping = aes(year, age)) +
+  geom_point() +
+  stat_summary(color = 'cadetblue', geom = 'line') +
+  ggtitle('Scatter plot - year/age')
 
+# Mean / median age development over time
 
-# 1. Count the number of people surveyed in for an age_group
+# Mean age aggregation
 
-age_group_education_ratio <- assessment_dataframe %>% dplyr::count(age_group)
+mean_age_year <- assessment_dataframe %>% 
+  dplyr::select(year, age)  %>% 
+  dplyr::group_by(year) %>% 
+  dplyr::summarize(mean_age = mean(age, na.rm = TRUE))
 
-# 2. Count the number of people in a year with a particular education
+# Line plot: mean age over time (solid) and trend line (dashed)
 
-age_group_education_ratio <-
-  age_group_education_ratio %>% left_join(
-    dplyr::rename(
-      dplyr::count(
-        dplyr::select(
-          filter(assessment_dataframe, education == '1. < HS Grad'), 6)
-        , age_group)
-      ,count_education_level_1 = n), 
-    by = 'age_group')
+ggplot(mean_age_year, mapping = aes(x = year, y = mean_age)) + 
+  geom_line(size = 1, linetype = 'solid') + 
+  geom_smooth(method = "lm",linetype = 'dashed', se = FALSE) +
+  labs(y = 'mean age', title = 'Line plot - year/mean age')
 
-age_group_education_ratio <-
-  age_group_education_ratio %>% left_join(
-    dplyr::rename(
-      dplyr::count(
-        dplyr::select(
-          filter(assessment_dataframe, education == '2. HS Grad'), 6)
-        , age_group)
-      ,count_education_level_2 = n), 
-    by = 'age_group')
-
-age_group_education_ratio <-
-  age_group_education_ratio %>% left_join(
-    dplyr::rename(
-      dplyr::count(
-        dplyr::select(
-          filter(assessment_dataframe, education == '3. Some College'), 6)
-        , age_group)
-      ,count_education_level_3 = n), 
-    by = 'age_group')
-
-age_group_education_ratio <-
-  age_group_education_ratio %>% left_join(
-    dplyr::rename(
-      dplyr::count(
-        dplyr::select(
-          filter(assessment_dataframe, education == '4. College Grad'), 6)
-        , age_group)
-      ,count_education_level_4 = n), 
-    by = 'age_group')
-
-age_group_education_ratio <-
-  age_group_education_ratio %>% left_join(
-    dplyr::rename(
-      dplyr::count(
-        dplyr::select(
-          filter(assessment_dataframe, education == '5. Advanced Degree'), 6)
-        , age_group)
-      ,count_education_level_5 = n), 
-    by = 'age_group')
-
-# 3. Divide the number of people with a certain education by all surveyed people in that year
-
-# replace NA values
-
-age_group_education_ratio <- as.tibble(age_group_education_ratio)
-
-age_group_education_ratio <- age_group_education_ratio %>% replace_na(list(count_education_level_1 = 0,
-                                                                           count_education_level_2 = 0,
-                                                                           count_education_level_3 = 0,
-                                                                           count_education_level_4 = 0,
-                                                                           count_education_level_5 = 0))
-
-age_group_education_ratio <- age_group_education_ratio %>% mutate(ratio_education_level_1 = count_education_level_1 / n)
-age_group_education_ratio <- age_group_education_ratio %>% mutate(ratio_education_level_2 = count_education_level_2 / n)
-age_group_education_ratio <- age_group_education_ratio %>% mutate(ratio_education_level_3 = count_education_level_3 / n)
-age_group_education_ratio <- age_group_education_ratio %>% mutate(ratio_education_level_4 = count_education_level_4 / n)
-age_group_education_ratio <- age_group_education_ratio %>% mutate(ratio_education_level_5 = count_education_level_5 / n)
-
-
-
-# 4. Stack (melt) the columns with the ratios to be able to visualize them.
-
-# Melting (stacking) is necessary to show a legend in ggplot
-age_group_edu_filtered <- age_group_education_ratio %>% dplyr::select(c(age_group,ratio_education_level_1, ratio_education_level_2, ratio_education_level_3, ratio_education_level_4, ratio_education_level_5))
-age_group_education_ratio_stacked = melt(age_group_edu_filtered,id.vars = "age_group", 
-                                         measure.vars = c("ratio_education_level_1", "ratio_education_level_2", "ratio_education_level_3", "ratio_education_level_4", "ratio_education_level_5"),
-                                         variable.name = 'education_level',
-                                         value.name = 'ratio') 
-
-
-age_group_education_ratio_stacked$education_level <- dplyr::recode(age_group_education_ratio_stacked$education_level, ratio_education_level_1 = "1. < HS Grad", 
-                                                            ratio_education_level_2 = "2. HS Grad",
-                                                            ratio_education_level_3 = "3. Some College",
-                                                            ratio_education_level_4 = "4. College Grad",
-                                                            ratio_education_level_5 = "5. Advanced Degree")
-
-
-# 5. Visualize the education development over time.
-
-
-ggplot(age_group_education_ratio_stacked, mapping = aes(x = (12+ as.integer(age_group)*4), y = ratio, color = education_level)) + 
-  geom_line(size = 1, linetype = 'solid') +
-  xlab('age group')
-  
-ggplot(age_group_education_ratio_stacked, mapping = aes(x = as.integer(age_group), y = ratio, color = education_level)) + 
-  geom_smooth(method = "lm", linetype = 'dashed', se = FALSE) +
-  xlab('age group')
-
-
-# --- 2.3.7 - Correlation: year -> age ----------------
-
-# Scatter plot year to wage
-# sampling of 300 random points so that points can be made out
-
-ggplot(assessment_dataframe) +
-  geom_point(mapping = aes(year, age))
 
 # Correlation assessment Pearson, Spearman and Kendall
 
@@ -807,39 +723,47 @@ cor.test(assessment_dataframe[,"year"],
          method = "kendall" )
 
 
-# Mean / median Wage development over time
 
-# Mean wage aggregation
-
-mean_wage_year <- assessment_dataframe %>% 
-  dplyr::select(year, wage)  %>% 
-  dplyr::group_by(year) %>% 
-  dplyr::summarize(mean_wage = mean(wage, na.rm = TRUE))
-
-# Line plot: mean wage over time (solid) and trend line (dashed)
-
-ggplot(mean_wage_year, mapping = aes(x = year, y = mean_wage)) + 
-  geom_line(size = 1, linetype = 'solid') + 
-  geom_smooth(method = "lm",linetype = 'dashed', se = FALSE)
-
-# Median wage aggregation
-
-median_wage_year <- assessment_dataframe %>% 
-  dplyr::select(year, wage)  %>% 
-  dplyr::group_by(year) %>% 
-  dplyr::summarize(median_wage = median(wage, na.rm = TRUE))
-
-# Line plot: median wage over time (solid) and trend line (dashed)
-
-ggplot(median_wage_year, mapping = aes(x = year, y = median_wage)) + 
-  geom_line(size = 1, linetype = 'solid') + 
-  geom_smooth(method = "lm",linetype = 'dashed', se = FALSE)
 
 # ---- 2.4 Partial correlations ----------------
-#pcorro <- pcor(c("wage","year","age","ed_ordinal"), var(assessment_dataframe))
-#pcor.test(pcorro, 3, 3000)
 
-# --- 2.4.1 Partial correlation year -> wage ---
+
+# --- 2.4.1 Partial correlation education -> wage ---
+
+ppcor::pcor.test(x=assessment_dataframe$ed_ordinal, y= assessment_dataframe$wage, 
+                 z = c(assessment_dataframe$age,assessment_dataframe$year),
+                 method = c("spearman"))
+
+
+ppcor::pcor.test(x=assessment_dataframe$ed_ordinal, y= assessment_dataframe$wage, 
+                 z = c(assessment_dataframe$age,assessment_dataframe$year),
+                 method = "kendall")
+
+
+# Finding: The partial correlation of education (ed_ordinal) -> wage 
+# strong and significant
+
+
+# --- 2.4.2 Partial correlation age -> wage ---
+
+ppcor::pcor.test(x=assessment_dataframe$age, y= assessment_dataframe$wage, 
+                 z = c(assessment_dataframe$ed_ordinal,assessment_dataframe$year),
+                 method = c("pearson"))
+
+ppcor::pcor.test(x=assessment_dataframe$age, y= assessment_dataframe$wage, 
+                 z = c(assessment_dataframe$ed_ordinal,assessment_dataframe$year),
+                 method = c("spearman"))
+
+ppcor::pcor.test(x=assessment_dataframe$age, y= assessment_dataframe$wage, 
+                 z = c(assessment_dataframe$ed_ordinal,assessment_dataframe$year),
+                 method = "kendall")
+
+
+# Finding: The partial correlation of age -> wage 
+# is much stronger than year -> wage and significant
+
+
+# --- 2.4.3 Partial correlation year -> wage ---
 
 ppcor::pcor.test(x=assessment_dataframe$year, y= assessment_dataframe$wage, 
                  z = c(assessment_dataframe$ed_ordinal,assessment_dataframe$age),
@@ -855,36 +779,6 @@ ppcor::pcor.test(x=assessment_dataframe$year, y= assessment_dataframe$wage,
 
 # Finding: The partial correlation of 
 # year -> wage is not strong, but significant
-
-# --- 2.4.2 Partial correlation age -> wage ---
-
-ppcor::pcor.test(x=assessment_dataframe$age, y= assessment_dataframe$wage, 
-                 z = c(assessment_dataframe$ed_ordinal,assessment_dataframe$year),
-                 method = c("pearson"))
-
-ppcor::pcor.test(x=assessment_dataframe$age, y= assessment_dataframe$wage, 
-                 z = c(assessment_dataframe$ed_ordinal,assessment_dataframe$year),
-                 method = "kendall")
-
-ppcor::pcor.test(x=assessment_dataframe$age, y= assessment_dataframe$wage, 
-                 z = c(assessment_dataframe$ed_ordinal,assessment_dataframe$year),
-                 method = c("spearman"))
-
-# Finding: The partial correlation of age -> wage 
-# is much stronger than year -> wage and significant
-
-# --- 2.4.3 Partial correlation education -> wage ---
-
-ppcor::pcor.test(x=assessment_dataframe$ed_ordinal, y= assessment_dataframe$wage, 
-                 z = c(assessment_dataframe$age,assessment_dataframe$year),
-                 method = "kendall")
-
-ppcor::pcor.test(x=assessment_dataframe$ed_ordinal, y= assessment_dataframe$wage, 
-                 z = c(assessment_dataframe$age,assessment_dataframe$year),
-                 method = c("spearman"))
-
-# Finding: The partial correlation of education (ed_ordinal) -> wage 
-# strong and significant
 
 
 # ---- 3. Regression Models ----------------
@@ -916,9 +810,9 @@ summary(simpleLinearAgeWageRegr)
 
 ggplot(assessment_dataframe,aes(age,wage))+
   geom_point() +
-  geom_smooth(method='lm')
+  geom_smooth()
 
-plot(summary(rq(wage ~ age, data=assessment_dataframe, tau = seq(from = 0.05, to=0.95, by = 0.05)))) 
+plot(summary(rq(wage ~ age^2, data=assessment_dataframe, tau = seq(from = 0.05, to=0.95, by = 0.05)))) 
 
 
 # --- 3.1.3 S.l. regression year -> wage ----
@@ -1031,13 +925,13 @@ anova(ageEduWageRegr)
 
 # without interaction effect
 
-eduAgeYearWageRegr <- lm (wage ~ education + age + year, data = assessment_dataframe)
+eduAgeYearWageRegr <- lm (wage ~ education + age^2 + year, data = assessment_dataframe)
 
 summary(eduAgeYearWageRegr)
 
 # with interaction effect between education and age
 
-eduAgeYearWageRegr <- lm (wage ~ education * age + year, data = assessment_dataframe)
+eduAgeYearWageRegr <- lm (wage ~ education * age^2 + year, data = assessment_dataframe)
 
 summary(eduAgeYearWageRegr)
 
@@ -1055,7 +949,7 @@ summary(eduAgeYearWageRegr)
 
 # with interaction effect between all independent attributes
 
-eduAgeYearWageRegr <- lm (wage ~ education * year * age, data = assessment_dataframe)
+eduAgeYearWageRegr <- lm (wage ~ education * year * age^2, data = assessment_dataframe)
 
 summary(eduAgeYearWageRegr)
 
@@ -1068,27 +962,29 @@ anova(eduAgeYearWageRegr)
 
 # Check the conditions of regression with best model
 
+fit=lm(wage~ed_ordinal*age^2*year,data=assessment_dataframe)
+summary(fit)
+plot(fit)
+
 
 # 1. X and Y variables have a linear relation (linear scatter pattern)
-# checked in a scatter plot before
 
 # shown by residuals vs. fitted values
+
+# Requirement met, the line is approx. horizontal
 
 
 # 2. Errors/residuals are normally distributed
 
-fit=lm(wage~ed_ordinal*age*year,data=assessment_dataframe)
-summary(fit)
-par(mfrow = c(2, 2))
-plot(fit)
+# How many records would be up to the second quantile
 
-# Result: Requirement not met, the qqplot is not on the qqline ca. for values x > 1
+# Result: Requirement not met for quantiles above the second, the qqplot is not on the qqline ca. for values x > 1
 
 # 3. Errors are independent / not autocorrelation bw errors
 
 # Durbin-watson test for Autocorrelated/non-independence of Errors
 # Ho: There is no auto-correlation bw errors (errors r independent)
-dwtest(fit)
+  dwtest(fit)
 
 # Result: Requirement met, Non-autocorrelation is not rejected, the errors are not autocorrelated
 
@@ -1099,18 +995,15 @@ dwtest(fit)
 # variance around the regression line is the same for all values of the predictor variable (X)
 ncvTest(fit)
 
-# Result: Requirement not met, non-homoscedasticity hypothesis is rejected
+# Result: Requirement not met, homoscedasticity hypothesis is rejected
 
 
 # 5. Avoid multi-collinearity bw predictors
 
-
-#(1) Tackle multi-collineraity, i.e. presence of highly correlated
-#predictors (X)
-#we remove numerical Xs with correlation>0.7
+# numerical Xs with correlation > 0.7 should be removed according to Singh (2018)
 
 #Dropping response variable, non-numeric and non-relevant features
-filter_assess = subset(assessment_dataframe, dplyr::select = -c(education, age_group, wage))
+filter_assess = subset(assessment_dataframe, select = -c(education, age_group, wage))
 
 #Calculating Correlation- strength of association between two variables
 descrCor <- cor(filter_assess)
@@ -1122,23 +1015,48 @@ corrplot(descrCor)
 # Result: There are no highly correlated variables in this dataset
 
 
-##########vif
-
-# Choose a VIF cutoff under which a variable is retained (Zuur et al. 2010 
-# vif>10  multi-collinearity
-#can also reject predictors with vf 5-10
-#car package
-
-fit=lm(medv~ed_ordinal+age+year,data=assessment_dataframe)
-summary(fit)
-
-vif(fit)
-
-# Result: No multicollinearity is found
-
 # --- 3.4 - Multiple Linear Regression - Correction of data to meet regression conditions ---------
 
+
+
 # --------------------- Correcting violation of regression condictions ----
+
+# --- 3.4.1 - Correcting homoscedasticity ----------------------------------------------
+
+# Use boxcox to check whether the dependent variable is not to be understood as y, but rather
+# log(y), y^2 or other forms
+
+fit=lm(wage~ed_ordinal*age^2*year,data=assessment_dataframe)
+
+par(mfrow = c(1,1))
+
+bc = boxcox(fit, lambda = seq(-3,3))
+best.lam = bc$x[which(bc$y==max(bc$y))]
+
+# best.lam close to 0, therefore log(y) as dependent variable
+
+# Check model with log(y) as dependent variable
+
+fit= lm(log(wage)~education*age^2*year,data=assessment_dataframe)
+summary(fit)
+
+par(mfrow = c(2,2))
+plot(fit)
+
+
+# --- 3.4.3 - Evaluating quantiles with quantile regression----------------------------
+
+plot(summary(rq(log(wage)~education*age*year,data=assessment_dataframe, tau = seq(from = 0.05, to=0.95, by = 0.05)))) 
+
+par(mfrow = c(2, 2))
+plot(qrego)
+
+
+
+# Answer: It is not entirely normal as seen in the qqplots, it has two modes
+
+# --- 3.4.1 - Correcting the normality of residuals ----------------------------------------------
+
 
 # Check the histogram of the response variable: Is it normal?
 
@@ -1150,20 +1068,15 @@ ggplot(assessment_dataframe) +
   ) 
 
 
-# Answer: It is not entirely normal as seen in the qqplots, it has two modes
-
-# --- 3.4.1 - Correcting the normality of residuals ----------------------------------------------
-
-
 # --- 3.4.1.2 Use robust regression to decrease the influence of outliers
 
 # Robust linear regression with huber weights for iterated re-weighted least squares (IRLS)
 
-rr.huber <- rlm(wage~education*age*year,data=assessment_dataframe)
+rr.huber <- rlm(log(wage)~education*age*year,data=assessment_dataframe)
 summary(rr.huber)
 
 
-par(mfrow = c(2, 2))
+par(mfrow = c(1,1))
 plot(rr.huber)
 
 
@@ -1184,7 +1097,7 @@ plot(rr.huber)
 #Ho: There is no auto-correlation bw errors (errors r independent)
 dwtest(rr.huber)
 
-# Result: Requirement met, Non-autocorrelation is not rejected, the errors are not autocorrelated
+# Result: Requirement not met, autocorrelation is not rejected, the errors are not autocorrelated
 
 
 # 4. constant error variance - Homoscedasticity of residuals or equal variance
@@ -1194,7 +1107,7 @@ dwtest(rr.huber)
 ncvTest(rr.huber)
  
 
-# Result: Requirement not met, non-homoscedasticity hypothesis is rejected. However, this may 
+# Result: Requirement not met, homoscedasticity hypothesis is rejected. However, this may 
 # be due to the large amount of data, visually the tendency is not strong
 
 
@@ -1213,40 +1126,7 @@ print(descrCor)
 # Entire result: Normality of dependent attribute could be improved, but is still not normal
 #               for large values
 
-# --- 3.4.2 - Correcting homoscedasticity ----------------------------------------------
 
-# Use boxcox to check whether the dependent variable is not to be understood as y, but rather
-# log(y), y^2 or other forms
-
-fit=lm(wage~ed_ordinal*age*year,data=assessment_dataframe)
-
-par(mfrow = c(1,1))
-
-bc = boxcox(fit, lambda = seq(-3,3))
-best.lam = bc$x[which(bc$y==max(bc$y))]
-
-# best.lam close to 0, therefore log(y) as dependent variable
-
-# Check model with log(y) as dependent variable
-
-fit= lm(log(wage)~education*age*year,data=assessment_dataframe)
-summary(fit)
-
-par(mfrow = c(2,2))
-plot(fit)
-
-# Normality check: check qqplot with regression in form of log(y)
-
-# --- 3.4.3 - Evaluating quantiles with quantile regression----------------------------
-
-
-
-
-
-plot(summary(rq(log(wage)~education*age*year,data=assessment_dataframe, tau = seq(from = 0.05, to=0.95, by = 0.05)))) 
-
-par(mfrow = c(2, 2))
-plot(qrego)
 
 
 # --- 3.5 - Selection of a regression model------------------------------------------
