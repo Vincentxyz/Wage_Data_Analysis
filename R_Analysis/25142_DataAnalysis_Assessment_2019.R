@@ -884,9 +884,9 @@ corrplot(descrCor)
 
 # --------------------- Correcting violation of regression condictions ----
 
-# --- 3.3.1 - Use Boxcox to improve homoskedasticity ----------------------------------------------
+# --- 3.3.1 - Use Box-Cox tranformation to improve homoskedasticity ----------------------------------------------
 
-# Use boxcox to check whether the dependent variable is not to be understood as y, but rather
+# Use Box-Cox tranformation to check whether the dependent variable is not to be understood as y, but rather
 # log(y), y^2 or other forms
 
 fit=lm(wage~education*age^2*year,data=assessment_dataframe)
@@ -911,7 +911,7 @@ plot(log_fit)
 # 2. Normal distribution: Accepted
 # 3. No autocorrelation: Accepted
 dwtest(log_fit)
-# 4. homoskedasticity: Not accepted
+# 4. Homoskedasticity: Not accepted
 ncvTest(log_fit)
 # 5. No multicollinearity (No change): Accepted 
 
