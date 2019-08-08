@@ -1,6 +1,53 @@
 # Vincent F. A. Meyer zu Wickern
 # Course: Data Analysis and Statistics
+# Description: THis is the submission for the data analysis
+#              exam at the Hochschule Rhein Waal for Vincent
+#              F. A. Meyer zu wickern. The impact of age, edu-
+#              cation, and age on wage are examined on the 
+#              basis of data from the Current Population Survey.
+#             The numbering in this script is the same as for 
+#             the paper 
 
+# The table of contents is designed to match the chapter numbers of the paper
+# "Impact analysis of education, age, and year on the wage of male workers in the US Mid-Atlantic region"
+# to easily find the implementation for the paper here or the longer descriptions in the paper
+
+# Table of Contents:
+# 0 Preparation of the environment
+# 1-2 (Left out to match paper numbering)
+# 3 Distribution of variables
+#   3.1 Distribution of education
+#   3.2 Distribution of age
+#   3.3 Distribution of years
+#   3.4 Distribution of wage
+# 4 Bivariate data analyses
+#   4.1 Association between education and wage
+#   4.2 Association between age and wage
+#   4.3 Association between year and wage 
+#   4.4 Association between year and education
+#   4.5 Association between age and education 
+#   4.6 Association between year and age
+# 5 Analysis of partial correlations
+#   5.1 Partial correlation between education and wage
+#   5.2 Partial correlation between age and wage
+#   5.3 Partial correlation between year and wage 
+# 6 Regression modeling
+#   6.1 Creation of a regression equation
+#   6.2 Examination of regression assumptions
+#   6.3 Adjustment of the regression model to meet regression assumptions
+#   6.3.1 Box-Cox transformation
+#   6.3.2 Regression with education as a numerical value
+#   6.3.3 Robust regression .
+#   6.3.4 Weighted least squares regression
+#   6.4 Quantile regression
+
+# 11-13 Techniques for Multivariate Setups 
+#       --> Describing main and interaction effects
+# 11) Grouped scatterplots
+# 12) Partial Correlation
+# 13) Multiple Regression
+
+#--- 3. Preparation of the environment  -----------------------------
 
 #----------------------------------------------------------
 # Reset R's brain
@@ -9,9 +56,6 @@ rm(list=ls())
 
 #----------------------------------------------------------
 # Reset graphic device
-# As long as there is any dev open (exept "null device") 
-# close the active one!
-# Caution: closes all open plots!!!!
 #----------------------------------------------------------
 while(!is.null(dev.list()))
 {
@@ -20,24 +64,34 @@ while(!is.null(dev.list()))
 
 # --- Load packages if necessary ---------------------------
 
+# ISLR. contains the necessary data
+
 if (!require(ISLR)) install.packages('ISLR')
 library(ISLR)
+
+# tidyverse: 
+# - ggplot2 (part of the tidyverse) used for visualizations
+# - dplyr (part of the tidyverse) used for dataframe operations
 
 if (!require(tidyverse)) install.packages('tidyverse')
 library(tidyverse)
 
+# e1071: Contains multiple statistics functions
+
 if (!require(e1071)) install.packages('e1071')
 library(e1071)
 
+# reshape2: Necessary for dataframe/tibble format changes
+ 
 if (!require(reshape2)) install.packages('reshape2')
 library(reshape2)
 
-# lmtest: Check autocorrelation between errors
+# lmtest: Contains functions to check autocorrelation between errors
 
 if (!require(lmtest)) install.packages('lmtest')
 library(lmtest)
 
-# car: Check homoskedasticity
+# car: Contains functions to check homoskedasticity
 
 if (!require(car)) install.packages('car')
 library(car)
@@ -47,7 +101,7 @@ library(car)
 if (!require(caret)) install.packages('caret')
 library(caret)
 
-# corrplot: Correlation plots
+# corrplot: Used for correlation plots
 
 if (!require(corrplot)) install.packages('corrplot')
 library(corrplot)
@@ -56,11 +110,6 @@ library(corrplot)
 
 if (!require(ppcor)) install.packages('ppcor')
 library(ppcor)
-
-# smatr: Used for ANCOVA analysis
-
-if (!require(smatr)) install.packages('smatr')
-library(smatr)
 
 # MASS: Used for regression selection and robust regression
 
@@ -77,59 +126,23 @@ library(foreign)
 if (!require(quantreg)) install.packages('quantreg')
 library(quantreg)
 
-# ---- Create citations for packages ----------------------
-
-# citation(package = 'ISLR')
-# 
-# citation(package = 'tidyverse')
-# 
-# citation(package = 'e1071')
-# 
-# citation(package = 'reshape2')
-# 
-# citation(package = 'lmtest')
-# 
-# citation(package = 'car')
-# 
-# citation(package = 'caret')
-# 
-# citation(package = 'corrplot')
-# 
-# citation(package = 'ppcor')
-# 
-# citation(package = 'smatr')
-# 
-# citation(package = 'MASS')
-# 
-# citation(package = 'foreign')
-# 
-# citation(package = 'quantreg')
-# 
-# citation(package = 'ggplot2')
-
 #--- Load sample ------------------------------------------
 # This part was added as specified in the task description
-# It is commented out and the initially drawn sample is worked on
 
 attach(Wage)
 assessment_dataframe <- Wage[sample(nrow(Wage), 3000), ]
-# 
-# setwd("C:\Users\vince_000\OneDrive - Hochschule Rhein-Waal\Master\SS 1 - Data Analysis & Statistics\Exam_Assignment")
-# 
-# write.csv2(assessment_dataframe, file = "assessment_dataframe.csv", row.names = FALSE)
 
-# assessment_dataframe <- read.csv2("assessment_dataframe.csv")
- 
-
+# The relevant attributes year, education, wage, are filtered
 assessment_dataframe <- assessment_dataframe %>% dplyr::select(year, age, education, wage)
 
 
-#--- 1. Descriptive statistics -----------------------------
+#--- 3. Distribution of variables  -----------------------------
 
+# Show the structure of the dataset
 str(assessment_dataframe)
 
+# Show the summary of the dataset to get a feeling of which values are contained
 summary(assessment_dataframe)
-
 
 # Define a function to present descriptive features of a numerical variable
 show_desc_stats <- function(variable,variable_name){
@@ -150,28 +163,9 @@ show_desc_stats <- function(variable,variable_name){
 }
 
 
-## -- 1.1 Variable sample population description ------------
+# -- 3.1 -  Distribution of education ---------------------------
 
-### -- 1.1.1 Variable description: Age -------------------------
-
-#### Create a histogram for the age of participants with bins of size 8 from age 16 to 100
-
-ggplot(assessment_dataframe) +
-  geom_bar(mapping =aes(age),
-                 color = 'cadetblue4',
-                 fill = 'cadetblue1',
-                 stat = 'density') + 
-  ggtitle('Distribution of age')
-
-
-
-show_desc_stats(assessment_dataframe$age,'age')
-
-
-
-### -- 1.1.2 Variable description: Education -------------------
-
-#### Create a barplot for the education of participants
+# Create a barplot for the education of participants
 
 ggplot(assessment_dataframe) + 
   geom_bar(mapping = aes(education), 
@@ -182,9 +176,47 @@ ggplot(assessment_dataframe) +
 
 
 
-### -- 1.1.3 Variable description: Wage -------------------
 
-#### Create a histogram of the wage
+# -- 3.2 - Distribution of age ---------------------------------
+
+# Create a histogram for the age of participants with bins of size 8 from age 16 to 100
+
+ggplot(assessment_dataframe) +
+  geom_bar(mapping =aes(age),
+                 color = 'cadetblue4',
+                 fill = 'cadetblue1',
+                 stat = 'density') + 
+  ggtitle('Distribution of age')
+
+# Present descriptive statistics of the variable
+
+show_desc_stats(assessment_dataframe$age,'age')
+
+
+# -- 3.3 - Distribution of years -------------------
+
+# Create a histogram of the years
+
+ggplot(assessment_dataframe) +
+  geom_bar(mapping =aes(year),
+           color = 'cadetblue4',
+           fill = 'cadetblue1')  +
+  ggtitle('Distribution of years')
+
+# Present descriptive statistics of the variable
+
+show_desc_stats(assessment_dataframe$year, 'year')
+
+# To show how many records are given per year, 
+# the year attribute is converted to a factor and described
+# with a summary
+
+summary(as.factor(assessment_dataframe$year))
+
+
+# -- 3.4 - Distribution of wage -------------------
+
+# Create a histogram of the wage
 
 ggplot(assessment_dataframe) +
   geom_bar(mapping =aes(wage),
@@ -195,46 +227,20 @@ ggplot(assessment_dataframe) +
   xlab('wage in USD 1,000') +
   ggtitle('Distribution of wage')
 
+# Present descriptive statistics of the variable
+
 show_desc_stats(assessment_dataframe$wage, 'wage')
 
-### -- 1.1.4 Variable description: Year -------------------
+# ---- 4 - Bivariate data analyses ------------------
 
-#### Create a histogram of the years
+# ---- 4.0 - Data preprocessing -------------------------
 
-ggplot(assessment_dataframe) +
-  geom_bar(mapping =aes(year),
-           color = 'cadetblue4',
-           fill = 'cadetblue1')  +
-  ggtitle('Distribution of years')
-
-show_desc_stats(assessment_dataframe$year, 'year')
-
-# To show how many records are given per year, 
-# the year attribute is converted to a factor and described
-# with a summary
-
-summary(as.factor(assessment_dataframe$year))
-
-# ---- 2 - Bivariate Data Analysis (Association / Correalation) --
-
-# ---- 2.1 - Data preprocessing -------------------------
-
-# ---- 2.1.1 Convert education to additional, ordinal value ---------
+# Convert education to additional, ordinal value ---------
 
 assessment_dataframe[,"ed_ordinal"] <- as.integer(assessment_dataframe[,"education"])
 
-# ---- 2.2 - Compute correlation matrices for overview --
 
-cor(dplyr::select(assessment_dataframe, c(year, age, ed_ordinal, wage)), method = 'pearson')
-
-cor(dplyr::select(assessment_dataframe, c(year, age, ed_ordinal, wage)), method = 'spearman')
-
-cor(dplyr::select(assessment_dataframe, c(year, age, ed_ordinal, wage)), method = 'kendall')
-
-
-# ---- 2.3 - Evaluate correlation between attributes ----
-
-# ---- 2.3.1 - Correlation: education -> Wage ---------
+# ---- 4.1 - Correlation: Association between education and wage ---------
 
 # Visual assessment with a boxplot diagram
 
@@ -246,17 +252,15 @@ boxplot(wage ~ education,data=assessment_dataframe,
 
 # Visual assessment of wage distribution by education with a histogram facet grid
 
-
 ggplot(assessment_dataframe, aes(wage)) +
   geom_bar(stat = "density",
            color = 'cadetblue4',
            fill = 'cadetblue1') +
   facet_grid(education ~ .) +
-  xlab('wage in USD 1,000')
-  ggtitle('Facet grid histograms - wage by education')
+  xlab('wage in USD 1,000') +
+  ggtitle('Facet grid histograms - Wage by education')
    
  
-
 # Spearman's rank correlation coefficient, rho
 cor(assessment_dataframe[,c("ed_ordinal","wage")], method = "spearman" )
 
@@ -272,7 +276,7 @@ cor.test(assessment_dataframe[,"ed_ordinal"],
          method = "kendall" )
 
 
-# --- 2.3.2 - Correlation: age -> wage ----------------
+# --- 4.2 - Association between age and wage ----------------
 
 # Scatter Plot with regression line: Age -> Wage
 
@@ -281,6 +285,7 @@ ggplot(assessment_dataframe,mapping = aes(age, wage)) +
   geom_smooth() +
   ylab('wage in USD 1,000') +
   ggtitle('Scatter plot - age/wage') 
+
 
 # Measure correlation between age and wage
 
@@ -316,7 +321,7 @@ ggplot(assessment_dataframe, aes(x = age, y = wage)) +
   
 min(filter(assessment_dataframe,education == '5. Advanced Degree')$age)
 
-# --- 2.3.1.3 - Correlation: year -> wage ----------------
+# --- 4.3 - Association between year and wage ----------------
 
 # Scatter plot year to wage
 
@@ -331,6 +336,23 @@ ggplot(assessment_dataframe,mapping = aes(year, wage)) +
 ggplot(assessment_dataframe,mapping = aes(as.factor(year), wage)) +
   geom_boxplot() +
   labs(title = 'Boxplot - year/wage', x = 'year', y = 'wage in USD 1,000') 
+
+
+# Mean / median Wage development over time
+
+# Mean wage aggregation
+
+mean_wage_year <- assessment_dataframe %>% 
+  dplyr::select(year, wage)  %>% 
+  dplyr::group_by(year) %>% 
+  dplyr::summarize(mean_wage = mean(wage, na.rm = TRUE))
+
+# Line plot: mean wage over time (solid) and trend line (dashed)
+
+ggplot(mean_wage_year, mapping = aes(x = year, y = mean_wage)) + 
+  geom_line(size = 1, linetype = 'solid') + 
+  geom_smooth(method = "lm",linetype = 'dashed', se = FALSE) +
+  labs(title = 'Line plot and linear regression line - year/mean wage', x = 'year', y = 'mean wage in USD 1,000')
 
 # Correlation assessment Pearson, Spearman and Kendall
 
@@ -351,36 +373,8 @@ cor.test(assessment_dataframe[,"year"],
          method = "kendall" )
 
 
-# Mean / median Wage development over time
 
-# Mean wage aggregation
-
-mean_wage_year <- assessment_dataframe %>% 
-                      dplyr::select(year, wage)  %>% 
-                      dplyr::group_by(year) %>% 
-                      dplyr::summarize(mean_wage = mean(wage, na.rm = TRUE))
-
-# Line plot: mean wage over time (solid) and trend line (dashed)
-
-ggplot(mean_wage_year, mapping = aes(x = year, y = mean_wage)) + 
-  geom_line(size = 1, linetype = 'solid') + 
-  geom_smooth(method = "lm",linetype = 'dashed', se = FALSE) +
-  labs(title = 'Line plot and linear regression line - year/mean wage', x = 'year', y = 'mean wage in USD 1,000')
-
-# Median wage aggregation
-
-median_wage_year <- assessment_dataframe %>% 
-  dplyr::select(year, wage)  %>% 
-  group_by(year) %>% 
-  summarize(median_wage = median(wage, na.rm = TRUE))
-
-# Line plot: median wage over time (solid) and trend line (dashed)
-
-ggplot(median_wage_year, mapping = aes(x = year, y = median_wage)) + 
-  geom_line(size = 1, linetype = 'solid') + 
-  geom_smooth(method = "lm",linetype = 'dashed', se = FALSE)
-
-# ---- 2.3.4 - Correlation: year -> education ---------
+# ---- 4.4 - Association between year and education ---------
 
 # Goal: Visually present the correlation between the attributes year and education
 # Add education ratios into a dataframe to be able to analyze the education 
@@ -539,7 +533,7 @@ cor.test(assessment_dataframe[,"year"],
          method = "kendall" )
 
 
-# ---- 2.3.5 - Correlation: age -> education ---------
+# ---- 4.5 - Association between age and education ---------
 
 
 # 1. Count the number of people surveyed for an age
@@ -679,7 +673,7 @@ cor.test(assessment_dataframe[,"age"],
 
 
 
-# --- 2.3.6 - Correlation: year -> age ----------------
+# --- 4.6 - Association between year and age ----------------
 
 # Scatter plot year to age
 
@@ -726,10 +720,10 @@ cor.test(assessment_dataframe[,"year"],
 
 
 
-# ---- 2.4 Partial correlations ----------------
+# ---- 5 - Partial correlations ----------------
 
 
-# --- 2.4.1 Partial correlation education -> wage ---
+# --- 5.1 - Partial correlation between education and wage ---
 
 ppcor::pcor.test(x=assessment_dataframe$ed_ordinal, y= assessment_dataframe$wage, 
                  z = c(assessment_dataframe$age,assessment_dataframe$year),
@@ -745,7 +739,7 @@ ppcor::pcor.test(x=assessment_dataframe$ed_ordinal, y= assessment_dataframe$wage
 # strong and significant
 
 
-# --- 2.4.2 Partial correlation age -> wage ---
+# --- 5.2 - Partial correlation between age and wage ---
 
 ppcor::pcor.test(x=assessment_dataframe$age, y= assessment_dataframe$wage, 
                  z = c(assessment_dataframe$ed_ordinal,assessment_dataframe$year),
@@ -764,7 +758,7 @@ ppcor::pcor.test(x=assessment_dataframe$age, y= assessment_dataframe$wage,
 # is much stronger than year -> wage and significant
 
 
-# --- 2.4.3 Partial correlation year -> wage ---
+# --- 5.3 - Partial correlation between year and wage ---
 
 ppcor::pcor.test(x=assessment_dataframe$year, y= assessment_dataframe$wage, 
                  z = c(assessment_dataframe$ed_ordinal,assessment_dataframe$age),
@@ -782,33 +776,9 @@ ppcor::pcor.test(x=assessment_dataframe$year, y= assessment_dataframe$wage,
 # year -> wage is not strong, but significant
 
 
-# ---- 3. Regression Models ----------------
+# ---- 6. Regression Modeling ----------------
 
-# --- 3.1 - Multiple linear regression education, year, age -> wage ---
-
-# without interaction effect
-
-eduAgeYearWageRegr <- lm (wage ~ education + age^2 + year, data = assessment_dataframe)
-
-summary(eduAgeYearWageRegr)
-
-# with interaction effect between education and age
-
-eduAgeYearWageRegr <- lm (wage ~ education * age^2 + year, data = assessment_dataframe)
-
-summary(eduAgeYearWageRegr)
-
-# with interaction effect between education and year
-
-eduAgeYearWageRegr <- lm (wage ~ education * year + age, data = assessment_dataframe)
-
-summary(eduAgeYearWageRegr)
-
-# with interaction effect between age and year
-
-eduAgeYearWageRegr <- lm (wage ~ education + year * age, data = assessment_dataframe)
-
-summary(eduAgeYearWageRegr)
+# --- 6.1 - Creation of a regression equation ---
 
 # with interaction effect between all independent attributes
 
@@ -821,7 +791,7 @@ anova(eduAgeYearWageRegr)
 # Result: interestingly, the interaction effect between education, year and age is significant,
 #         although education and year as well as year and age is not significant
 
-# --- 3.2 - Multiple Linear Regression - Assumption check ---------
+# --- 6.2 - Examination of regression assumptions ---------
 
 # Check the conditions of regression with best model
 
@@ -878,13 +848,9 @@ corrplot(descrCor)
 # Result: There are no highly correlated variables in this dataset
 
 
-# --- 3.3 - Multiple Linear Regression - Correction of data to meet regression conditions ---------
+# --- 6.3 - Adjustment of the regression term to meet regression assumptions ---------
 
-
-
-# --------------------- Correcting violation of regression condictions ----
-
-# --- 3.3.1 - Use Box-Cox tranformation to improve homoskedasticity ----------------------------------------------
+# --- 6.3.1 - Box-Cox transformation ----------------------------------------------
 
 # Use Box-Cox tranformation to check whether the dependent variable is not to be understood as y, but rather
 # log(y), y^2 or other forms
@@ -907,15 +873,15 @@ par(mfrow = c(2,2))
 plot(log_fit)
 
 
-# 1. Linear relation: Accepted
-# 2. Normal distribution: Accepted
-# 3. No autocorrelation: Accepted
+# 1. Linear relation: Not violated
+# 2. Normal distribution: Not violated
+# 3. No autocorrelation: Not violated
 dwtest(log_fit)
-# 4. Homoskedasticity: Not accepted
+# 4. Homoskedasticity: Violated
 ncvTest(log_fit)
-# 5. No multicollinearity (No change): Accepted 
+# 5. No multicollinearity (No change): Not violated 
 
-# --- 3.3.2 - Education as numerical, ordinal value ----------------------------------------------
+# --- 6.3.2 - Regression with education as a numerical value ----------------
 
 
 log_ed_num_fit= lm(log(wage)~ed_ordinal*age^2*year,data=assessment_dataframe)
@@ -923,17 +889,18 @@ summary(log_ed_num_fit)
 
 plot(log_ed_num_fit)
 
-# 1. Linear relation: Accepted
-# 2. Normal distribution: Accepted
-# 3. No autocorrelation: Accepted
+# 1. Linear relation: Not violated
+# 2. Normal distribution: Not violated
+# 3. No autocorrelation: Not violated
 dwtest(log_ed_num_fit)
-# 4. homoskedasticity: Not accepted
+# 4. homoskedasticity: Violated
 ncvTest(log_ed_num_fit)
 bptest(log_ed_num_fit)
-# 5. No multicollinearity (No change): Accepted 
+# 5. No multicollinearity (No change): Not violated 
 
-# --- 3.3.3 Use robust regression to decrease the influence of outliers ---------------
+# --- 6.3.3 - Robust regression ---------------------------------------------
 
+# Use robust regression to decrease the influence of outliers
 # Robust linear regression with huber weights for iterated re-weighted least squares (IRLS)
 
 fit_huber <- rlm(log(wage)~education*age^2*year,data=assessment_dataframe)
@@ -941,24 +908,27 @@ summary(fit_huber)
 
 plot(fit_huber)
 
-# 1. Linear relation: Accepted
-# 2. Normal distribution: Partly accepted
-# 3. No autocorrelation: Accepted
+# 1. Linear relation: Not violated
+# 2. Normal distribution: Partly violated
+# 3. No autocorrelation: Not violated
 dwtest(fit_huber)
-# 4. Homoskedasticity: Not accepted
+# 4. Homoskedasticity: Violated
 ncvTest(fit_huber)
 bptest(fit_huber)
-# 5. No multicollinearity (No change): Accepted 
+# 5. No multicollinearity (No change): Not violated 
 
 
-# --- 3.3.4 - Weighted Least Squares -------------------------------------------------
+# --- 6.3.4 - Weighted least squares regression -------------------------------------------------
 
 # Applying weighted least squares regression may help to deal with heteroskedasticity
 
-# Create regression model until now
+# Create regression term, which was used until now and a new regression term for the absolute values of the 
+# residuals.
 sd_func <- lm(abs(log_fit$residuals)~assessment_dataframe$education*assessment_dataframe$age*assessment_dataframe$year)
 
 # Create weights with absolute sample variances from the observations
+# The below formula is a standard formula to calculate these weights
+# Spirce of the function: J. Perone, 2018, URL: youtube.com/watch?v=DTt0hLyRaTc
 wls_weights <- 1/((sd_func$fitted.values)^2)
 
 # Create the new regression model
@@ -969,24 +939,25 @@ summary(wls_log_fit)
 par(mfrow = c(2,2))
 plot(wls_log_fit)
 
-# 1. Linear relation: Accepted
-# 2. Normal distribution: Accepted
-# 3. No autocorrelation: Accepted
-dwtest(wls_log_fit)
-# 4. Homoskedasticity: Accepted
+# 1. Linear relation: Not violated
+# 2. Normal distribution: Not violated
+# 3. No autocorrelation: Not violated (Visually tested, Durbin-Watson test not possible for weighted regression)
+# 4. Homoskedasticity: Not violated
 ncvTest(wls_log_fit)
-# 5. No multicollinearity (No change): Accepted 
+# 5. No multicollinearity (No change): Not violated 
 
-# --- 3.3.5 - Evaluating quantiles with quantile regression----------------------------
+# --- 6.4 - Quantile regression ----------------------------
 
-#education
+# Evaluating quantiles with quantile regression
+
+# education
 plot(summary(rq(log(wage)~education,data=assessment_dataframe, weights = wls_weights, tau = seq(from = 0.05, to=0.95, by = 0.05)))) 
 
-#age
+# age
 plot(summary(rq(log(wage)~age^2,data=assessment_dataframe, tau = seq(from = 0.05, to=0.95, by = 0.05)))) 
 
-#year
+# year
 plot(summary(rq(log(wage)~year,data=assessment_dataframe, tau = seq(from = 0.05, to=0.95, by = 0.05)))) 
 
-par(mfrow = c(7,3))
+# quantile plot for all attributes together and interaction effects
 plot(summary(rq(wage~education*age*year,data=assessment_dataframe, weights = wls_weights, tau = seq(from = 0.05, to=0.95, by = 0.05))))
